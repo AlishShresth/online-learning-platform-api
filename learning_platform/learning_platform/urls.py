@@ -16,10 +16,9 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
-from core.views import TestAuthView
+from django.urls import path, include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/test-auth/", TestAuthView.as_view(), name="test-auth"),
+    path("", include("core.urls")),
 ]
