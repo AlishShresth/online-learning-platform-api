@@ -1,12 +1,10 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
+from .models import Course
+from .serializers import CourseSerializer
 
 
-class TestAuthView(APIView):
+class CourseViewSet(ModelViewSet):
+    queryset = Course.objects.select_related("instructor")
+    serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        return Response(
-            {"message": f"Hello, {request.user.email}! You are authenticated."}
-        )
