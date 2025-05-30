@@ -29,6 +29,8 @@ class Course(models.Model):
     description = models.TextField()
     instructor = models.ForeignKey(
         User,
+        null=True,
+        blank=True,
         on_delete=models.SET_NULL,
         limit_choices_to={"role": "instructor"},
         related_name="courses",
