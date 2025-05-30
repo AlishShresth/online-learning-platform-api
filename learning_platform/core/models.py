@@ -29,21 +29,26 @@ class Course(models.Model):
     description = models.TextField()
     instructor = models.ForeignKey(
         User,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         limit_choices_to={"role": "instructor"},
         related_name="courses",
     )
     price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)  # Added for partial indexing
 
     class Meta:
         indexes = [
             models.Index(
                 fields=["instructor", "created_at"]
             ),  # Composite index for instructor-specific queries
+            models.Index(
+                fields=["title"],
+                condition=models.Q(is_active=True),
+                name="active_courses_idx",
+            ),  # Partial index on title where is_active=True optimizes queries like Course.objects.filter(is_active=True, title__icontains='Python').
+            # condition=Q(is_active=True) creates a index with WHERE is_active=true.
         ]
 
     def __str__(self):
