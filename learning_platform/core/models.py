@@ -53,3 +53,34 @@ class Course(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Enrollment(models.Model):
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        limit_choices_to={"role": "student"},
+        related_name="enrollments",
+    )
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="enrollments"
+    )
+    enrollment_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=20,
+        choices=(
+            ("active", "Active"),
+            ("completed", "Completed"),
+            ("dropped", "Dropped"),
+        ),
+        default="active",
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["student", "course"])  # for fast enrollment lookups
+        ]
+        unique_together = [["student", "course"]]  # prevent duplicate enrollments
+
+    def __str__(self):
+        return f"{self.student.email} enrolled in {self.course.title}"
