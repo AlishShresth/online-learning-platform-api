@@ -5,9 +5,10 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
+from rest_framework.decorators import action
 from .models import Course
-from .serializers import CourseSerializer, RegisterSerializer
-from .permissions import IsInstructor
+from .serializers import CourseSerializer, RegisterSerializer, EnrollmentSerializer
+from .permissions import IsInstructor, IsStudent
 
 
 class CourseViewSet(ModelViewSet):
@@ -19,7 +20,21 @@ class CourseViewSet(ModelViewSet):
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsInstructor()]
+        elif self.action == "enroll":
+            return [IsStudent()]
         return [IsAuthenticated()]
+
+    @action(detail=True, methods=["post"], url_path="enroll")
+    def enroll(self, request, pk=None):
+        course = self.get_object()
+        data = {"course": course.id, "student": request.user.id}
+        serializer = EnrollmentSerializer(data=data, context={"request": request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"message": "Enrolled successfully"}, status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RegisterView(APIView):
