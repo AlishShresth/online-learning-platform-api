@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Course
+from .models import User, Course, Enrollment
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -47,3 +47,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(validated_data["password"])
         user.save()
         return user
+
+
+class EnrollmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Enrollment
+        fields = ["id", "student", "course", "enrollment_date", "status"]
+        read_only_fields = ["enrollment_date", "student"]
+
+    def validate(self, data):
+        # Ensure the course exists and is active
+        course = data["course"]
+        if not course.is_active:
+            raise serializers.ValidationError("Cannot enroll in an inactive course.")
+        # Check if already enrolled
+        if Enrollment.objects.filter(
+            student=self.context["request"].user, course=course
+        ).exists():
+            raise serializers.ValidationError("Already enrolled in this course.")
+        return data
