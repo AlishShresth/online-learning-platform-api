@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
+from django.views.decorators.cache import cache_page
 from .models import Course
 from .serializers import CourseSerializer, RegisterSerializer, EnrollmentSerializer
 from .permissions import IsInstructor, IsStudent
@@ -15,6 +16,10 @@ class CourseViewSet(ModelViewSet):
     queryset = Course.objects.select_related("instructor")
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]
+
+    @cache_page(60 * 15)  # Cache for 15 minutes
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     # use get_permissions for dynamic permission logic
     def get_permissions(self):
