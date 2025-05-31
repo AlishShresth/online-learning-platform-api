@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
 
 
 class User(AbstractUser):
@@ -37,6 +39,7 @@ class Course(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)  # Added for partial indexing
+    search_vector = SearchVectorField(null=True)  # for full-text search
 
     class Meta:
         indexes = [
@@ -49,6 +52,7 @@ class Course(models.Model):
                 name="active_courses_idx",
             ),  # Partial index on title where is_active=True optimizes queries like Course.objects.filter(is_active=True, title__icontains='Python').
             # condition=Q(is_active=True) creates a index with WHERE is_active=true.
+            GinIndex(fields=["search_vector"], name="course_search_idx"),
         ]
 
     def __str__(self):
