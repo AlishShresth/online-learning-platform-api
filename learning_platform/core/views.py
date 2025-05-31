@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate
+from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.views.decorators.cache import cache_page
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
@@ -6,7 +8,6 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
-from django.views.decorators.cache import cache_page
 from .models import Course
 from .serializers import CourseSerializer, RegisterSerializer, EnrollmentSerializer
 from .permissions import IsInstructor, IsStudent
@@ -40,6 +41,25 @@ class CourseViewSet(ModelViewSet):
                 {"message": "Enrolled successfully"}, status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["get"], url_path="search")
+    def search(self, request):
+        query = request.query_params.get("q", "")
+        if not query:
+            return Response(
+                {"error": 'Query parameter "q" is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        search_query = SearchQuery(query)
+        queryset = (
+            Course.objects.filter(search_vector=search_query)
+            .annotate(rank=SearchRank(search_vector=search_query))
+            .order_by("-rank")
+        )
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class RegisterView(APIView):
