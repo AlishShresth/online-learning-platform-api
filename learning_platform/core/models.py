@@ -88,3 +88,31 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.student.email} enrolled in {self.course.title}"
+
+
+class Payment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="payments")
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="payments"
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    stripe_payment_id = models.CharField(max_length=100, unique=True)
+    status = models.CharField(
+        max_length=20,
+        choices=(
+            ("pending", "Pending"),
+            ("completed", "Completed"),
+            ("failed", "Failed"),
+        ),
+        default="pending",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "created_at"]),  # for user payment history
+            models.Index(fields=["stripe_payment_id"]),  # for fast stripe lookups
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} paid {self.amount} for {self.course.title}"
