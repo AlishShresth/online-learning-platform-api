@@ -1,5 +1,7 @@
+import stripe
 from django.contrib.auth import authenticate
 from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.conf import settings
 from django.views.decorators.cache import cache_page
 from rest_framework import status
 from rest_framework.views import APIView
@@ -8,9 +10,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
-from .models import Course
-from .serializers import CourseSerializer, RegisterSerializer, EnrollmentSerializer
+from .models import Course, Payment, Enrollment
+from .serializers import (
+    CourseSerializer,
+    RegisterSerializer,
+    EnrollmentSerializer,
+    PaymentSerializer,
+)
 from .permissions import IsInstructor, IsStudent
+
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 class CourseViewSet(ModelViewSet):
@@ -101,3 +111,46 @@ class LoginView(APIView):
         return Response(
             {"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
         )
+
+
+class PaymentView(APIView):
+    permission_classes = [IsStudent]
+
+    def post(self, request):
+        course_id = request.data.get("course_id")
+        token = request.data.get("stripe_token")  # from frontend (e.g. Stripe.js)
+
+        try:
+            course = Course.objects.get(id=course_id, is_active=True)
+            charge = stripe.Charge.create(
+                amount=int(course.price * 100),  # convert to cents
+                currency="usd",
+                source=token,
+                description=f"Payment for {course.title}",
+            )
+            payment = Payment.objects.create(
+                user=request.user,
+                course=course,
+                amount=course.price,
+                stripe_payment_id=charge.id,
+                status="completed",
+            )
+            # Auto-enroll after successful payment
+            Enrollment.objects.create(student=request.user, course=course)
+            return Response(
+                {"message": "Payment and enrollment successful"},
+                status=status.HTTP_201_CREATED,
+            )
+        except Course.DoesNotExist:
+            return Response(
+                {"error": "Course not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        except stripe.error.StripeError as e:
+            Payment.objects.create(
+                user=request.user,
+                course=course,
+                amount=course.price,
+                strip_payment_id="",
+                status="failed",
+            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
