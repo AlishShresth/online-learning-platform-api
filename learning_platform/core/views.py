@@ -18,6 +18,7 @@ from .serializers import (
     PaymentSerializer,
 )
 from .permissions import IsInstructor, IsStudent
+from .tasks import send_payment_confirmation_email
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -137,6 +138,8 @@ class PaymentView(APIView):
             )
             # Auto-enroll after successful payment
             Enrollment.objects.create(student=request.user, course=course)
+            # Trigger async email
+            send_payment_confirmation_email.delay(request.user.email, course.title)
             return Response(
                 {"message": "Payment and enrollment successful"},
                 status=status.HTTP_201_CREATED,
