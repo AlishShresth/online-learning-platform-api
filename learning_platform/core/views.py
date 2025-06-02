@@ -29,7 +29,9 @@ class CourseViewSet(ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]
 
-    @cache_page(60 * 15)  # Cache for 15 minutes
+    @cache_page(
+        60 * 15, cache="default", key_prefix="course_list_cache"
+    )  # Cache for 15 minutes
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
