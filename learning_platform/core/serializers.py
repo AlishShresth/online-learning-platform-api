@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Course, Enrollment, Payment
+from .models import User, Course, Enrollment, Payment, Review
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -83,3 +83,24 @@ class PaymentSerializer(serializers.ModelSerializer):
             "status",
             "created_at",
         ]
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ["id", "course", "student", "rating", "comment", "created_at"]
+        read_only_fields = ["student", "created_at"]
+
+    def validate(self, data):
+        # Ensure student is enrolled in the course
+        course = data["course"]
+        student = self.context["request"].user
+        if not Enrollment.objects.filter(
+            student=student, course=course, status="active"
+        ).exists():
+            raise serializers.ValidationError(
+                "You must be enrolled in the course to review it."
+            )
+        if data["rating"] < 1 or data["rating"] > 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return data
