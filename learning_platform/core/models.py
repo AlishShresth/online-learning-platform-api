@@ -116,3 +116,27 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.user.email} paid {self.amount} for {self.course.title}"
+
+
+class Review(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="reviews")
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE(),
+        related_name="reviews",
+        limit_choices_to={"role": "student"},
+    )
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["course", "created_at"]),  # For course review lists
+        ]
+        unique_together = [["student", "course"]]  # one review per student per course
+
+    def __str__(self):
+        return (
+            f"{self.student.email} reviewed {self.course.title} ({self.rating} stars)"
+        )
